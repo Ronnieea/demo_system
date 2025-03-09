@@ -1,0 +1,259 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 讓整個畫面滿版並置中 */
+.container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f7;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* 標題樣式 */
+.title {
+  font-size: 2rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* 主要內容佈局 */
+.layout-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  max-width: 1200px;
+}
+
+.left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 音檔上傳區塊 */
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 250px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 上傳按鈕樣式 */
+.upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  gap: 10px;
+}
+
+.upload-icon {
+  width: 40px;
+  height: 40px;
+  color: #4b5563;
+}
+
+.upload-text {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.hidden {
+  display: none;
+}
+
+/* 按鈕區塊 */
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-left: 50px;
+}
+
+/* 按鈕樣式 */
+.process-button,
+.delete-button,
+.play-button {
+  border-radius: 8px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.process-button {
+  width: 80px;
+  height: 40px;
+  background-color: #3b82f6;
+  color: white;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.process-button:hover {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+}
+
+.delete-button {
+  width: 40px;
+  height: 40px;
+  background-color: #d1d5db;
+  color: black;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.delete-button:hover {
+  background-color: #9ca3af;
+  transform: translateY(-2px);
+}
+
+.play-button {
+  width: 40px;
+  height: 40px;
+  background-color: #d1d5db;
+  color: black;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.play-button:hover {
+  background-color: #9ca3af;
+  transform: translateY(-2px);
+}
+
+/* 表情符號對應的情緒解釋區域 */
+.emotion-legend {
+  display: flex;
+  margin-left: -57rem;
+  padding: 5px;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.emotion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.emoji {
+  font-size: 20px;
+}
+
+/* 箭頭樣式 */
+.arrow-icon {
+  width: 50px;
+  height: 50px;
+  color: #6b7280;
+}
+
+/* 情緒分析結果區域 */
+.emotion-result {
+  width: 250px;
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 200px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.result-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* 大表情符號 */
+.emoji-large {
+  font-size: 8rem;
+}
+
+.no-emotion {
+  font-size: 8rem;
+}
+
+/* LLM 回應與額外資訊 */
+.emotion-percentage,
+.llm-response {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.emotion-percentage {
+  width: 200px;
+  height: 200px;
+  text-align: left;
+}
+.llm-response {
+  width: 200px;
+  height: 200px;
+  justify-content: center;
+  margin-right: -100px;
+}
+
+/* VAD Graph 容器 */
+.vad-graph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  width: 100%;
+  height: 200px;
+  max-width: 200px;
+  margin-top: -100px;
+}
+
+/* VAD Graph 內部內容*/
+.vad-graph h2 {
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Responsive Container 讓 VAD Graph 佔滿 Card */
+.recharts-responsive-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* 調整 VAD 三角形的標籤 */
+.vad-graph text {
+  font-size: 14px;
+  font-weight: bold;
+  fill: #333;
+}
