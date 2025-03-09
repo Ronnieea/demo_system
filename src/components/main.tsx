@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import "./AudioEmotionAnalyzer.css";
+import "./styles/main.css";
 
 // 定義情緒類型
 type Emotion =

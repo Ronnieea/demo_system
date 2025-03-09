@@ -1,4 +1,4 @@
-import AudioEmotionAnalyzer from "@/components/AudioEmotionAnalyzer";
+import AudioEmotionAnalyzer from "@/components/main";
 
 export default function Home() {
   return <AudioEmotionAnalyzer />;
