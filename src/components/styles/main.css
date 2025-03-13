@@ -15,16 +15,18 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f7;
+  background-color: #fafafa;
   padding: 20px;
   box-sizing: border-box;
 }
 
 /* 標題樣式 */
 .title {
-  font-size: 2rem;
+  font-size: 3rem;
   font-weight: bold;
-  text-align: center;
+  align-self: flex-start;
+  margin-left: 10rem;
+  margin-top: 10rem;
 }
 
 /* 主要內容佈局 */
@@ -40,7 +42,6 @@ body {
 .left-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
 }
 
 /* 音檔上傳區塊 */
@@ -48,11 +49,26 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 250px;
+  width: 300px;
+  height: 200px;
   padding: 20px;
-  background-color: white;
+  background-color: rgb(207, 224, 242);
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: -5rem;
+}
+
+.inside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 200px;
+  height: 100px;
+  padding: 20px;
+  background-color: rgb(255, 255, 255);
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 1rem;
 }
 
 /* 上傳按鈕樣式 */
@@ -62,6 +78,7 @@ body {
   align-items: center;
   cursor: pointer;
   gap: 10px;
+  margin-top: 2rem;
 }
 
 .upload-icon {
@@ -83,7 +100,8 @@ body {
 .button-group {
   display: flex;
   gap: 10px;
-  margin-left: 50px;
+  margin-top: 1rem;
+  margin-left: 1.5rem;
 }
 
 /* 按鈕樣式 */
@@ -143,7 +161,9 @@ body {
 /* 表情符號對應的情緒解釋區域 */
 .emotion-legend {
   display: flex;
-  margin-left: -57rem;
+  align-self: flex-start;
+  margin-left: 10rem;
+  margin-top: -5rem;
   padding: 5px;
   border-radius: 8px;
   background-color: #ffffff;
@@ -176,10 +196,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 200px;
   background-color: white;
-  border-radius: 10px;
+  border-radius: 180px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* margin-right: 30rem; */
+  margin-top: -5rem;
 }
 
 .result-content {
@@ -201,7 +222,7 @@ body {
 
 /* LLM 回應與額外資訊 */
 .emotion-percentage,
-.llm-response {
+.vad-graph {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -211,15 +232,10 @@ body {
 }
 
 .emotion-percentage {
-  width: 200px;
+  width: 300px;
   height: 200px;
-  text-align: left;
-}
-.llm-response {
-  width: 200px;
-  height: 200px;
-  justify-content: center;
-  margin-right: -100px;
+  background-color: rgb(207, 224, 242);
+  margin-top: -3rem;
 }
 
 /* VAD Graph 容器 */
@@ -231,11 +247,10 @@ body {
   background-color: white;
   border-radius: 12px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 10px;
-  width: 100%;
+  width: 300px;
   height: 200px;
-  max-width: 200px;
-  margin-top: -100px;
+  background-color: rgb(207, 224, 242);
+  margin-top: 3rem;
 }
 
 /* VAD Graph 內部內容*/

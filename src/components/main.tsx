@@ -212,64 +212,53 @@ export default function AudioEmotionAnalyzer() {
 
   return (
     <div className="container">
-      <h1 className="title">Speech Emotion Recognition Model</h1>
-      {/* emotion percentage */}
-      <Card className="emotion-percentage">
-        <CardContent>
-          <h2>Top 3 Emotions</h2>
-          {Object.entries(emotionScores)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
-            .map(([key, value]) => (
-              <p key={key}>
-                {key.charAt(0).toUpperCase() + key.slice(1)}: {value.toFixed(1)}
-                %
-              </p>
-            ))}
-        </CardContent>
-      </Card>
+      <h1 className="title">DEmo</h1>
+
       <div className="layout-grid">
         {/* 左側：音檔上傳區域 */}
         <div className="left-section">
           <Card className="upload-section">
             <CardContent>
-              <label htmlFor="audio-upload" className="upload-label">
-                <Upload className="upload-icon" />
-                <span className="upload-text">File Input</span>
-                <input
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="audio-upload"
-                />
-              </label>
-              {audioURL && (
-                <>
-                  <audio ref={audioRef} className="audio-player">
-                    <source src={audioURL} type="audio/mpeg" />
-                    Your browser does not support the audio element.
-                  </audio>
-                </>
-              )}
+              <Card className="inside">
+                <CardContent>
+                  <label htmlFor="audio-upload" className="upload-label">
+                    <Upload className="upload-icon" />
+                    <span className="upload-text">File Input</span>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="audio-upload"
+                    />
+                  </label>
+                  {audioURL && (
+                    <>
+                      <audio ref={audioRef} className="audio-player">
+                        <source src={audioURL} type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="button-group">
+                <Button onClick={handlePlayPause} className="play-button">
+                  {isPlaying ? <Pause /> : <Play />}
+                </Button>
+                <Button onClick={handleUpload} className="process-button">
+                  {loading ? "Processing..." : "Process"}
+                </Button>
+                <Button onClick={handleDelete} className="delete-button">
+                  <Trash2 className="delete-icon" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
-
-          <div className="button-group">
-            <Button onClick={handlePlayPause} className="play-button">
-              {isPlaying ? <Pause /> : <Play />}
-            </Button>
-            <Button onClick={handleUpload} className="process-button">
-              {loading ? "Processing..." : "Process"}
-            </Button>
-            <Button onClick={handleDelete} className="delete-button">
-              <Trash2 className="delete-icon" />
-            </Button>
-          </div>
         </div>
 
         {/* 中間：箭頭和情緒分析結果 */}
-        <ArrowRight className="arrow-icon" />
         <Card className="emotion-result">
           <CardContent>
             {emotion ? (
@@ -285,10 +274,47 @@ export default function AudioEmotionAnalyzer() {
             )}
           </CardContent>
         </Card>
-
-        {/* 右側：LLM 回應 */}
-        <div className="llm-response">
-          <p>LLM Response</p>
+        <div className="right-section">
+          {/* emotion percentage */}
+          <Card className="emotion-percentage">
+            <CardContent>
+              <h2>Top 3 Emotions</h2>
+              {Object.entries(emotionScores)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([key, value]) => (
+                  <p key={key}>
+                    {key.charAt(0).toUpperCase() + key.slice(1)}:{" "}
+                    {value.toFixed(1)}%
+                  </p>
+                ))}
+            </CardContent>
+          </Card>
+          {/* VAD graph */}
+          <Card className="vad-graph">
+            <CardContent>
+              <h2>VAD Graph</h2>
+              {/* <ResponsiveContainer width="100%" height={150}>
+              <ScatterChart>
+                <XAxis type="number" dataKey="x" domain={[-120, 120]} hide />
+                <YAxis type="number" dataKey="y" domain={[-120, 120]} hide />
+                <Scatter data={vadData} fill="#ff7300">
+                  {vadData.map((point, index) => (
+                    <text
+                      key={index}
+                      x={point.x + 150} // 調整標籤位置
+                      y={-point.y + 150} // 調整標籤位置
+                      textAnchor="middle"
+                      fill="black"
+                    >
+                      {point.label}
+                    </text>
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer> */}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -309,31 +335,6 @@ export default function AudioEmotionAnalyzer() {
           )
         )}
       </div>
-      {/* VAD graph */}
-      <Card className="vad-graph">
-        <CardContent>
-          <h2>VAD Graph</h2>
-          <ResponsiveContainer width="100%" height={150}>
-            <ScatterChart>
-              <XAxis type="number" dataKey="x" domain={[-120, 120]} hide />
-              <YAxis type="number" dataKey="y" domain={[-120, 120]} hide />
-              <Scatter data={vadData} fill="#ff7300">
-                {vadData.map((point, index) => (
-                  <text
-                    key={index}
-                    x={point.x + 150} // 調整標籤位置
-                    y={-point.y + 150} // 調整標籤位置
-                    textAnchor="middle"
-                    fill="black"
-                  >
-                    {point.label}
-                  </text>
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
     </div>
   );
 }
