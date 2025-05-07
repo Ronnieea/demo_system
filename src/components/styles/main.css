@@ -1,274 +1,192 @@
-html,
-body {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* 讓整個畫面滿版並置中 */
 .container {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: #fafafa;
-  padding: 20px;
-  box-sizing: border-box;
+  max-width: 1350px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
 }
 
-/* 標題樣式 */
-.title {
-  font-size: 3rem;
-  font-weight: bold;
-  align-self: flex-start;
-  margin-left: 10rem;
-  margin-top: 10rem;
-}
-
-/* 主要內容佈局 */
 .layout-grid {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  height: 100%;
-  max-width: 1200px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
 }
 
-.left-section {
-  display: flex;
-  flex-direction: column;
+@media (min-width: 768px) {
+  .layout-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-/* 音檔上傳區塊 */
-.upload-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 300px;
-  height: 200px;
-  padding: 20px;
-  background-color: rgb(207, 224, 242);
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-top: -5rem;
+.upload-section,
+.expression-box,
+.vad-box {
+  background: #ffffff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.03);
+  border-radius: 0.75rem;
+  padding: 1rem;
 }
 
-.inside {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 200px;
-  height: 100px;
-  padding: 20px;
-  background-color: rgb(255, 255, 255);
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-top: 1rem;
-}
-
-/* 上傳按鈕樣式 */
-.upload-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  gap: 10px;
-  margin-top: 2rem;
-}
-
-.upload-icon {
-  width: 40px;
-  height: 40px;
-  color: #4b5563;
-}
-
-.upload-text {
-  font-size: 14px;
-  color: #4b5563;
-}
-
-.hidden {
-  display: none;
-}
-
-/* 按鈕區塊 */
-.button-group {
-  display: flex;
-  gap: 10px;
-  margin-top: 1rem;
-  margin-left: 1.5rem;
-}
-
-/* 按鈕樣式 */
-.process-button,
-.delete-button,
-.play-button {
-  border-radius: 8px;
-  font-weight: bold;
+.emotion-circle {
+  border-radius: 9999px;
+  padding: 3rem;
   text-align: center;
-  cursor: pointer;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #f1f1f1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.03);
+}
+
+.text-6xl {
+  font-size: 10rem;
+}
+
+.recording-wave {
   display: flex;
-  align-items: center;
   justify-content: center;
-  border: none;
-  transition: all 0.2s ease-in-out;
-}
-
-.process-button {
-  width: 80px;
+  align-items: flex-end;
   height: 40px;
-  background-color: #3b82f6;
-  color: white;
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  gap: 6px;
+  margin-bottom: 1rem;
 }
 
-.process-button:hover {
-  background-color: #2563eb;
-  transform: translateY(-2px);
+.recording-wave .bar {
+  background: linear-gradient(to top, #4ade80, #22c55e);
+  width: 4px;
+  border-radius: 4px;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  transition: height 0.2s ease-out;
 }
 
-.delete-button {
-  width: 40px;
-  height: 40px;
-  background-color: #d1d5db;
-  color: black;
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-.delete-button:hover {
-  background-color: #9ca3af;
-  transform: translateY(-2px);
-}
-
-.play-button {
-  width: 40px;
-  height: 40px;
-  background-color: #d1d5db;
-  color: black;
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-.play-button:hover {
-  background-color: #9ca3af;
-  transform: translateY(-2px);
-}
-
-/* 表情符號對應的情緒解釋區域 */
-.emotion-legend {
+.right-section {
   display: flex;
-  align-self: flex-start;
-  margin-left: 10rem;
-  margin-top: -5rem;
-  padding: 5px;
-  border-radius: 8px;
-  background-color: #ffffff;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .text-5xl {
+    font-size: 2rem;
+  }
+  .text-xl {
+    font-size: 1.25rem;
+  }
+  .text-lg {
+    font-size: 1rem;
+  }
+}
+
+.btn {
+  align-items: center;
+  margin-top: 20rem;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 16px;
+  padding: 0.5em 0.3em 0.5em 0.3em;
+  color: white;
+  background: #ad5389;
+  background: linear-gradient(
+    0deg,
+    rgb(20, 79, 167) 0%,
+    rgb(102, 138, 247) 100%
+  );
+  border-radius: 0.8rem;
+  border: none;
+  box-shadow: 0 0.7em 1.5em -0.5em #145ea798;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.btn-stop {
+  margin-left: 6rem;
+}
+.btn-start {
+  margin-left: 2rem;
+}
+
+.btn:hover {
+  box-shadow: 0 0.5em 1.5em -0.5em #145ea798;
+}
+
+.btn:active {
+  box-shadow: 0 0.3em 1em -0.5em #145ea798;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .emotion-item {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: #374151;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed #e5e7eb;
 }
-
+.emotion-label {
+  text-transform: capitalize;
+  font-weight: 500;
+}
 .emoji {
-  font-size: 20px;
+  font-size: 1.75rem;
+  margin-right: 0.5rem;
 }
 
-/* 箭頭樣式 */
-.arrow-icon {
-  width: 50px;
-  height: 50px;
-  color: #6b7280;
-}
-
-/* 情緒分析結果區域 */
-.emotion-result {
-  width: 250px;
-  height: 250px;
+.recording-visual-box {
+  /* background: rgba(255, 255, 255, 0.07);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1); */
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: white;
-  border-radius: 180px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  /* margin-right: 30rem; */
-  margin-top: -5rem;
+  position: absolute;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #f1f1f1);
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.03);
+  padding: 1rem;
+  margin-left: 1.5rem;
+  margin-top: 2.5rem;
+  width: 20rem;
+  height: 13rem;
 }
 
-.result-content {
+.mic-icon-wrapper {
+  position: relative;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
 }
 
-/* 大表情符號 */
-.emoji-large {
-  font-size: 8rem;
+.mic-icon {
+  z-index: 2;
+  color: #2563eb;
+  width: 64px;
+  height: 64px;
 }
 
-.no-emotion {
-  font-size: 8rem;
+.mic-pulse {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  background: rgba(37, 99, 235, 0.2);
+  border-radius: 50%;
+  animation: pulse 1.6s infinite ease-in-out;
+  z-index: 1;
 }
 
-/* LLM 回應與額外資訊 */
-.emotion-percentage,
-.vad-graph {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.emotion-percentage {
-  width: 300px;
-  height: 200px;
-  background-color: rgb(207, 224, 242);
-  margin-top: -3rem;
-}
-
-/* VAD Graph 容器 */
-.vad-graph {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 300px;
-  height: 200px;
-  background-color: rgb(207, 224, 242);
-  margin-top: 3rem;
-}
-
-/* VAD Graph 內部內容*/
-.vad-graph h2 {
-  font-size: 18px;
-  font-weight: bold;
-  text-align: center;
-}
-
-/* Responsive Container 讓 VAD Graph 佔滿 Card */
-.recharts-responsive-container {
-  width: 100%;
-  height: 100%;
-}
-
-/* 調整 VAD 三角形的標籤 */
-.vad-graph text {
-  font-size: 14px;
-  font-weight: bold;
-  fill: #333;
+@keyframes pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
 }

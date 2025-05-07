@@ -1,28 +1,20 @@
 import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Upload, Trash2, ArrowRight, Play, Pause } from "lucide-react";
+import { Mic } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { motion } from "framer-motion";
 import {
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
 } from "recharts";
+import { motion } from "framer-motion";
+import { transcodeTo16kWav } from "@/components/transcode";
+
 import "./styles/main.css";
 
-// 定義情緒類型
-type Emotion =
-  | "happy"
-  | "sad"
-  | "angry"
-  | "neutral"
-  | "surprised"
-  | "fearful"
-  | "disgusted";
-
-const emojiMap: Record<Emotion, string> = {
+const emojiMap: Record<string, string> = {
   happy: "😊",
   sad: "😢",
   angry: "😠",
@@ -33,307 +25,325 @@ const emojiMap: Record<Emotion, string> = {
 };
 
 export default function AudioEmotionAnalyzer() {
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioURL, setAudioURL] = useState<string | null>(null);
-  const [emotion, setEmotion] = useState<Emotion | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [emotionScores, setEmotionScores] = useState<Record<Emotion, number>>({
-    happy: 0,
-    sad: 0,
-    angry: 0,
-    neutral: 0,
-    surprised: 0,
-    fearful: 0,
-    disgusted: 0,
-  });
-
-  const [vadValues, setVadValues] = useState<{
-    valence: number;
-    arousal: number;
-    dominance: number;
-  }>({
-    valence: 0.5,
-    arousal: 0.5,
-    dominance: 0.5,
-  });
-
-  const [linePos, setLinePos] = useState<
-    { x1: number; y1: number; x2: number; y2: number }[]
+  const [isRecording, setIsRecording] = useState(false);
+  const [top3Display, setTop3Display] = useState<
+    { label: string; score: number }[]
   >([]);
-  const componentRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const historyRef = useRef<
+    { label: string; score: number; timestamp: number }[]
+  >([]);
+  const [vadHistory, setVadHistory] = useState<
+    { axis: "Valence" | "Arousal"; value: number }[]
+  >([
+    { axis: "Valence", value: 0 },
+    { axis: "Arousal", value: 0 },
+  ]);
+  const [recordingDuration, setRecordingDuration] = useState<number>(0);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  //web animation
+  const [barHeights, setBarHeights] = useState<number[]>(
+    new Array(32).fill(10)
+  );
+  const animationRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   useEffect(() => {
-    const updateLinePositions = () => {
-      const elements = [
-        "emotion-result",
-        "emotion-percentage",
-        "vad-graph",
-        "llm-response",
-      ];
-      const positions = [];
+    if (!isRecording) return;
 
-      for (let i = 0; i < elements.length - 1; i++) {
-        const el1 = componentRefs.current[elements[i]];
-        const el2 = componentRefs.current[elements[i + 1]];
-        if (el1 && el2) {
-          const rect1 = el1.getBoundingClientRect();
-          const rect2 = el2.getBoundingClientRect();
-          positions.push({
-            x1: rect1.x + rect1.width / 2,
-            y1: rect1.y + rect1.height / 2,
-            x2: rect2.x + rect2.width / 2,
-            y2: rect2.y + rect2.height / 2,
-          });
-        }
-      }
-      setLinePos(positions);
-    };
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        // 設定 streamRef，供 cleanup 釋放
+        streamRef.current = stream;
 
-    window.addEventListener("resize", updateLinePositions);
-    updateLinePositions();
-    return () => window.removeEventListener("resize", updateLinePositions);
-  }, []);
+        // 不強制 mimeType，由瀏覽器決定
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
 
-  const vadScale = 100; // 調整三角形的縮放比例，限制最大範圍
-  const vadData = [
-    { x: 0, y: vadValues.valence * vadScale, label: "V" }, // Valence 在上方
-    {
-      x: (-Math.sqrt(3) / 2) * vadValues.arousal * vadScale,
-      y: -0.5 * vadValues.arousal * vadScale,
-      label: "A",
-    }, // Arousal 在左下
-    {
-      x: (Math.sqrt(3) / 2) * vadValues.dominance * vadScale,
-      y: -0.5 * vadValues.dominance * vadScale,
-      label: "D",
-    }, // Dominance 在右下
-  ];
+        // Web Audio 動畫
+        const audioCtx = new AudioContext();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
-      const file = event.target.files[0];
-      setAudioFile(file);
-      setAudioURL(URL.createObjectURL(file));
-    }
-  };
+        source.connect(analyser);
+        audioContextRef.current = audioCtx;
+        sourceRef.current = source;
 
-  const handleUpload = async () => {
-    if (!audioFile) return;
-    setLoading(true);
+        const animate = () => {
+          analyser.getByteFrequencyData(dataArray);
+          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          const scaled = Math.min(avg / 3, 50);
+          const newHeights = Array.from(
+            { length: 32 },
+            () => Math.random() * scaled + 5
+          );
+          setBarHeights(newHeights);
+          animationRef.current = requestAnimationFrame(animate);
+        };
+        animationRef.current = requestAnimationFrame(animate);
 
-    const formData = new FormData();
-    formData.append("file", audioFile);
+        recorder.ondataavailable = async (e) => {
+          console.log(e.data.type); // 確認是 audio/webm 還是其他
+          if (e.data.size === 0) return;
+          const timestamp = Date.now();
 
-    try {
-      const response = await fetch(
-        `https://router.huggingface.co/hf-inference/models/${process.env.NEXT_PUBLIC_HF_MODEL}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_HF_API_KEY}`,
-          },
-          body: formData,
-        }
-      );
+          //上傳至模型並取得分析結果
+          // router.huggingface.co/hf-inference/models/
+          const wavBlob = await transcodeTo16kWav(e.data);
+          const formData = new FormData();
+          formData.append("inputs", wavBlob, "chunk.wav");
+          try {
+            const response = await fetch(
+              `https://api-inference.huggingface.co/models/${process.env.NEXT_PUBLIC_HF_MODEL}`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.NEXT_PUBLIC_HF_API_KEY}`,
+                },
+                body: formData,
+              }
+            );
 
-      console.log(response);
-      const result = await response.json();
-      console.log("API Response:", result);
+            const result = await response.json();
 
-      if (result && Array.isArray(result)) {
-        const scores: Record<Emotion, number> = {
-          happy: 0,
-          sad: 0,
-          angry: 0,
-          neutral: 0,
-          surprised: 0,
-          fearful: 0,
-          disgusted: 0,
+            //解析 VAD 值（如果模型回傳 vad）
+            if (result.vad) {
+              setVadHistory([
+                { axis: "Valence", value: result.vad.valence ?? 0 },
+                { axis: "Arousal", value: result.vad.arousal ?? 0 },
+              ]);
+            }
+
+            if (Array.isArray(result) && result.length > 0) {
+              //計算 Top 3（只看最近 5 秒）
+              const entry = {
+                label: result[0].label.toLowerCase(),
+                score: result[0].score * 100,
+                timestamp,
+              };
+              historyRef.current.push(entry);
+              // 保留最近 5 秒
+              const window5 = historyRef.current.filter(
+                (d) => timestamp - d.timestamp <= 5000
+              );
+              // 計算 Top3
+              const agg: Record<string, number> = {};
+              window5.forEach((d) => {
+                agg[d.label] = (agg[d.label] || 0) + d.score;
+              });
+              const top3 = Object.entries(agg)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([label, score]) => ({ label, score }));
+              setTop3Display(top3);
+            } else {
+              console.warn("Invalid or empty result from API:", result);
+            }
+          } catch (err) {
+            console.error("API Error:", err);
+          }
         };
 
-        result.forEach((entry) => {
-          const label = entry.label.toLowerCase() as Emotion;
-          if (scores.hasOwnProperty(label)) {
-            scores[label] = entry.score * 100;
+        recorder.start();
+        setTimeout(() => {
+          if (recorder.state === "recording") {
+            recorder.requestData();
           }
-        });
+        }, 100);
 
-        // // 解析 VAD 值
-        // if (result.vad) {
-        //   setVadValues({
-        //     valence: result.vad.valence || 0,
-        //     arousal: result.vad.arousal || 0,
-        //     dominance: result.vad.dominance || 0,
-        //   });
-        // }
+        // 5秒一次切片
+        intervalRef.current = setInterval(() => {
+          if (mediaRecorderRef.current?.state === "recording") {
+            mediaRecorderRef.current.requestData();
+          }
+        }, 5000);
 
-        const sortedEmotions = Object.entries(scores)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3);
+        // 錄音秒數計時
+        durationTimerRef.current = setInterval(() => {
+          setRecordingDuration((d) => d + 1);
+        }, 1000);
+      })
+      .catch((err) => {
+        console.error("Cannot access microphone.", err);
+        setIsRecording(false);
+      });
 
-        setEmotion(sortedEmotions[0][0] as Emotion);
-        setEmotionScores(scores);
-      }
-    } catch (error) {
-      console.error("Error fetching Hugging Face model:", error);
-    }
+    return () => {
+      // stop recording
+      mediaRecorderRef.current?.stop();
+      // stop all of the mic track
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      // stop animation
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (durationTimerRef.current) clearInterval(durationTimerRef.current);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      //stop audioContext
+      audioContextRef.current?.close();
+      sourceRef.current?.disconnect();
 
-    setLoading(false);
-  };
+      // clean historyRef
+      historyRef.current = [];
 
-  const handleDelete = () => {
-    setAudioFile(null);
-    setAudioURL(null);
-    setEmotion(null);
-    setIsPlaying(false);
-    setEmotionScores({
-      happy: 0,
-      sad: 0,
-      angry: 0,
-      neutral: 0,
-      surprised: 0,
-      fearful: 0,
-      disgusted: 0,
-    });
-  };
+      // reset
+      setRecordingDuration(0);
+      setBarHeights(new Array(32).fill(10));
+    };
+  }, [isRecording]);
 
-  const handlePlayPause = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
+  const latestEmotion = top3Display[0]?.label ?? null;
 
   return (
     <div className="container">
-      <h1 className="title">DEmo</h1>
-
+      <h1 className="title">Real-Time DEmo</h1>
       <div className="layout-grid">
-        {/* 左側：音檔上傳區域 */}
-        <div className="left-section">
-          <Card className="upload-section">
-            <CardContent>
-              <Card className="inside">
+        <Card className="upload-section">
+          <CardContent>
+            <div className="recording-area">
+              <p className="duration">Duration: {recordingDuration}s</p>
+
+              <Card className="recording-visual-box">
                 <CardContent>
-                  <label htmlFor="audio-upload" className="upload-label">
-                    <Upload className="upload-icon" />
-                    <span className="upload-text">File Input</span>
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      id="audio-upload"
-                    />
-                  </label>
-                  {audioURL && (
-                    <>
-                      <audio ref={audioRef} className="audio-player">
-                        <source src={audioURL} type="audio/mpeg" />
-                        Your browser does not support the audio element.
-                      </audio>
-                    </>
+                  {!isRecording ? (
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className="mic-icon-wrapper"
+                    >
+                      <Mic className="mic-icon" />
+                      <span className="mic-pulse" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="recording-wave"
+                    >
+                      {barHeights.map((h, i) => (
+                        <motion.div
+                          key={i}
+                          className="bar"
+                          animate={{ height: h }}
+                          transition={{ duration: 0.1 }}
+                        />
+                      ))}
+                    </motion.div>
                   )}
                 </CardContent>
               </Card>
+              {/* <div className="recording-visual-box"></div> */}
 
-              <div className="button-group">
-                <Button onClick={handlePlayPause} className="play-button">
-                  {isPlaying ? <Pause /> : <Play />}
-                </Button>
-                <Button onClick={handleUpload} className="process-button">
-                  {loading ? "Processing..." : "Process"}
-                </Button>
-                <Button onClick={handleDelete} className="delete-button">
-                  <Trash2 className="delete-icon" />
-                </Button>
+              {/* {isRecording && (
+                <div className="recording-wave">
+                  {barHeights.map((height, i) => (
+                    <motion.div
+                      key={i}
+                      className="bar"
+                      animate={{ height }}
+                      transition={{ duration: 0.1 }}
+                    />
+                  ))}
+                </div>
+              )} */}
+
+              <div className="btn-area">
+                <button
+                  className="btn btn-start"
+                  onClick={() => {
+                    setRecordingDuration(0);
+                    setIsRecording(true);
+                  }}
+                  disabled={isRecording}
+                >
+                  Start Recording
+                </button>
+                <button
+                  onClick={() => setIsRecording(false)}
+                  disabled={!isRecording}
+                  className="btn btn-stop"
+                >
+                  Stop Recording
+                </button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 中間：箭頭和情緒分析結果 */}
-        <Card className="emotion-result">
-          <CardContent>
-            {emotion ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <p className="emoji-large">{emojiMap[emotion]}</p>
-              </motion.div>
-            ) : (
-              <p className="no-emotion">❓</p>
-            )}
+            </div>
           </CardContent>
         </Card>
-        <div className="right-section">
-          {/* emotion percentage */}
-          <Card className="emotion-percentage">
+
+        <div className="emotion-circle shadow-inner bg-gradient-to-br from-white to-slate-200">
+          <h2 className="text-xl font-semibold mb-2">Current Emotion</h2>
+          <motion.div
+            key={top3Display[0]?.label}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="text-6xl">
+              {top3Display[0]?.label ? emojiMap[top3Display[0].label] : "❓"}
+            </div>
+          </motion.div>
+        </div>
+
+        <div className="right-section space-y-4">
+          <Card className="expression-box">
             <CardContent>
-              <h2>Top 3 Emotions</h2>
-              {Object.entries(emotionScores)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 3)
-                .map(([key, value]) => (
-                  <p key={key}>
-                    {key.charAt(0).toUpperCase() + key.slice(1)}:{" "}
-                    {value.toFixed(1)}%
-                  </p>
-                ))}
+              <h2 className="text-lg font-semibold mb-2">Top 3 Emotions</h2>
+              <motion.div layout transition={{ duration: 0.3 }}>
+                {top3Display.length > 0 ? (
+                  top3Display.map((e, idx) => (
+                    <motion.p
+                      key={e.label}
+                      className="emotion-item"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <span className="emoji mr-1">{emojiMap[e.label]}</span>
+                      <span className="emotion-label">{e.label}</span>:{" "}
+                      {e.score.toFixed(1)}%
+                    </motion.p>
+                  ))
+                ) : (
+                  <p className="text-gray-500">No data yet.</p>
+                )}
+              </motion.div>
             </CardContent>
           </Card>
-          {/* VAD graph */}
-          <Card className="vad-graph">
+
+          <Card className="vad-box">
             <CardContent>
-              <h2>VAD Graph</h2>
-              {/* <ResponsiveContainer width="100%" height={150}>
-              <ScatterChart>
-                <XAxis type="number" dataKey="x" domain={[-120, 120]} hide />
-                <YAxis type="number" dataKey="y" domain={[-120, 120]} hide />
-                <Scatter data={vadData} fill="#ff7300">
-                  {vadData.map((point, index) => (
-                    <text
-                      key={index}
-                      x={point.x + 150} // 調整標籤位置
-                      y={-point.y + 150} // 調整標籤位置
-                      textAnchor="middle"
-                      fill="black"
-                    >
-                      {point.label}
-                    </text>
-                  ))}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer> */}
+              <h2 className="text-lg font-semibold mb-2">Emotion V-A Radar</h2>
+              <ResponsiveContainer width="100%" height={200}>
+                <RadarChart
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="80%"
+                  data={vadHistory}
+                >
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="axis" />
+                  <PolarRadiusAxis domain={[0, 1]} tickCount={5} />
+                  <Radar
+                    name="VAD"
+                    dataKey="value"
+                    stroke="#82ca9d"
+                    fill="#82ca9d"
+                    fillOpacity={0.6}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      {/* 表情符號對應解釋 */}
-      <div className="emotion-legend">
-        {[...Array(Math.ceil(Object.keys(emojiMap).length / 3))].map(
-          (_, rowIndex) => (
-            <div key={rowIndex} className="emotion-row">
-              {Object.entries(emojiMap)
-                .slice(rowIndex * 3, rowIndex * 3 + 3)
-                .map(([key, emoji]) => (
-                  <p key={key} className="emotion-item">
-                    <span className="emoji">{emoji}</span> -{" "}
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </p>
-                ))}
-            </div>
-          )
-        )}
       </div>
     </div>
   );
