@@ -1,38 +1,30 @@
+// lib/convertToWav.ts
 import { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 
-const ffmpeg = createFFmpeg({
-  log: true,
-  corePath: "https://unpkg.com/@ffmpeg/core@0.12.4/dist/ffmpeg-core.js",
-});
+const ffmpeg = createFFmpeg({ log: false, corePath: "/ffmpeg/ffmpeg-core.js" });
 
-export const transcodeTo16kWav = async (audioBlob: Blob): Promise<Blob> => {
-  if (!ffmpeg.isLoaded()) {
-    await ffmpeg.load();
-  }
+export const convertToWav = async (webmBlob: Blob): Promise<Blob> => {
+  if (!ffmpeg.isLoaded()) await ffmpeg.load();
 
-  const uint8Array = new Uint8Array(await audioBlob.arrayBuffer());
-
-  ffmpeg.FS("writeFile", "input.webm", uint8Array);
+  ffmpeg.FS("writeFile", "input.webm", await fetchFile(webmBlob));
 
   await ffmpeg.run(
     "-i",
     "input.webm",
     "-ar",
-    "16000",
+    "16000", // 16kHz
     "-ac",
-    "1",
+    "1", // mono
     "-f",
     "wav",
     "output.wav"
   );
 
-  const output = ffmpeg.FS("readFile", "output.wav");
-  const wavBlob = new Blob([new Uint8Array(output.buffer)], {
-    type: "audio/wav",
-  });
-
+  const wavData = ffmpeg.FS("readFile", "output.wav");
   ffmpeg.FS("unlink", "input.webm");
   ffmpeg.FS("unlink", "output.wav");
 
-  return wavBlob;
+  return new Blob([new Uint8Array(wavData.buffer as ArrayBuffer)], {
+    type: "audio/wav",
+  });
 };

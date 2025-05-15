@@ -10,7 +10,7 @@ import {
   PolarRadiusAxis,
 } from "recharts";
 import { motion } from "framer-motion";
-import { transcodeTo16kWav } from "@/components/transcode";
+import { getWaveBlob } from "webm-to-wav-converter";
 
 import "./styles/main.css";
 
@@ -92,26 +92,25 @@ export default function AudioEmotionAnalyzer() {
         animationRef.current = requestAnimationFrame(animate);
 
         recorder.ondataavailable = async (e) => {
-          console.log(e.data.type); // 確認是 audio/webm 還是其他
           if (e.data.size === 0) return;
           const timestamp = Date.now();
 
+          const wavBlob = await getWaveBlob(e.data, false);
+
           //上傳至模型並取得分析結果
-          // router.huggingface.co/hf-inference/models/
-          const wavBlob = await transcodeTo16kWav(e.data);
           const formData = new FormData();
-          formData.append("inputs", wavBlob, "chunk.wav");
+          formData.append("file", e.data, "audio.webm");
           try {
-            const response = await fetch(
-              `https://api-inference.huggingface.co/models/${process.env.NEXT_PUBLIC_HF_MODEL}`,
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${process.env.NEXT_PUBLIC_HF_API_KEY}`,
-                },
-                body: formData,
-              }
-            );
+            if (!process.env.NEXT_PUBLIC_HF_ENDPOINT) {
+              throw new Error("NEXT_PUBLIC_HF_ENDPOINT is not defined");
+            }
+            const response = await fetch(process.env.NEXT_PUBLIC_HF_ENDPOINT, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.NEXT_PUBLIC_HF_API_KEY}`,
+              },
+              body: wavBlob,
+            });
 
             const result = await response.json();
 
@@ -153,19 +152,11 @@ export default function AudioEmotionAnalyzer() {
           }
         };
 
-        recorder.start();
-        setTimeout(() => {
-          if (recorder.state === "recording") {
-            recorder.requestData();
-          }
-        }, 100);
+        recorder.onstop = () => {
+          console.log("錄音器已停止");
+        };
 
-        // 5秒一次切片
-        intervalRef.current = setInterval(() => {
-          if (mediaRecorderRef.current?.state === "recording") {
-            mediaRecorderRef.current.requestData();
-          }
-        }, 5000);
+        recorder.start(5000); // 每 5 秒自動送出資料
 
         // 錄音秒數計時
         durationTimerRef.current = setInterval(() => {
@@ -241,20 +232,6 @@ export default function AudioEmotionAnalyzer() {
                   )}
                 </CardContent>
               </Card>
-              {/* <div className="recording-visual-box"></div> */}
-
-              {/* {isRecording && (
-                <div className="recording-wave">
-                  {barHeights.map((height, i) => (
-                    <motion.div
-                      key={i}
-                      className="bar"
-                      animate={{ height }}
-                      transition={{ duration: 0.1 }}
-                    />
-                  ))}
-                </div>
-              )} */}
 
               <div className="btn-area">
                 <button
