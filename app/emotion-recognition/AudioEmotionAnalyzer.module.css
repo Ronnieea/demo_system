@@ -22,16 +22,55 @@
   }
 }
 
-.upload-section,
-.expression-box,
-.vad-box {
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: #1e293b;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #334155;
+}
+
+.recordingArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.duration {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: #64748b;
+}
+
+.btnArea {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.textGray {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.uploadSection,
+.expressionBox,
+.vadBox {
   background: #ffffff;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.03);
   border-radius: 0.75rem;
   padding: 1rem;
 }
 
-.emotion-circle {
+.emotionCircle {
   border-radius: 9999px;
   padding: 3rem;
   text-align: center;
@@ -39,11 +78,11 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.03);
 }
 
-.text-6xl {
+.text6xl {
   font-size: 10rem;
 }
 
-.recording-wave {
+.recordingWave {
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -54,25 +93,25 @@
 }
 
 @media (max-width: 640px) {
-  .emotion-circle {
+  .emotionCircle {
     padding: 2rem;
     font-size: 2rem;
   }
 
-  .text-6xl {
+  .text6xl {
     font-size: 4rem;
   }
 
-  .recording-wave {
+  .recordingWave {
     gap: 3px;
   }
 
-  .recording-wave .bar {
+  .recordingWave .bar {
     width: 2px;
   }
 }
 
-.recording-wave .bar {
+.recordingWave .bar {
   background: linear-gradient(to top, #4ade80, #22c55e);
   width: 4px;
   border-radius: 4px;
@@ -80,7 +119,7 @@
   transition: height 0.2s ease-out;
 }
 
-.right-section {
+.rightSection {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -110,10 +149,10 @@
   touch-action: manipulation;
 }
 
-.btn-stop {
+.btnStop {
   margin-left: 6rem;
 }
-.btn-start {
+.btnStart {
   margin-left: 2rem;
 }
 
@@ -130,13 +169,13 @@
   cursor: not-allowed;
 }
 
-.emotion-item {
+.emotionItem {
   display: flex;
   justify-content: space-between;
   padding: 0.4rem 0;
   border-bottom: 1px dashed #e5e7eb;
 }
-.emotion-label {
+.emotionLabel {
   text-transform: capitalize;
   font-weight: 500;
 }
@@ -145,7 +184,7 @@
   margin-right: 0.5rem;
 }
 
-.recording-visual-box {
+.recordingVisualBox {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -160,7 +199,7 @@
   height: 13rem;
 }
 
-.mic-icon-wrapper {
+.micIconWrapper {
   position: relative;
   width: 64px;
   height: 64px;
@@ -169,14 +208,14 @@
   justify-content: center;
 }
 
-.mic-icon {
+.micIcon {
   z-index: 2;
   color: #2563eb;
   width: 64px;
   height: 64px;
 }
 
-.mic-pulse {
+.micPulse {
   position: absolute;
   width: 96px;
   height: 96px;
