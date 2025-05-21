@@ -12,10 +12,15 @@ import {
   PolarRadiusAxis,
 } from "recharts";
 import { motion } from "framer-motion";
-import { getWaveBlob } from "webm-to-wav-converter";
+
+// Import custom hooks and services
+import { useAudioRecording } from "../hooks/useAudioRecording";
+import { useAudioVisualization } from "../hooks/useAudioVisualization";
+// import { analyzeAudioEmotion, processEmotionResults } from "../api/emotion_recognition/route";
 
 import styles from "./AudioEmotionAnalyzer.module.css";
 
+// Emoji mapping for emotion display
 const emojiMap: Record<string, string> = {
   happy: "😊",
   sad: "😢",
@@ -27,224 +32,80 @@ const emojiMap: Record<string, string> = {
 };
 
 export default function AudioEmotionAnalyzer() {
+  // State for recording control and emotion display
   const [isRecording, setIsRecording] = useState(false);
   const [top3Display, setTop3Display] = useState<
     { label: string; score: number }[]
   >([]);
-  const [recordingDuration, setRecordingDuration] = useState<number>(0);
   const [vadHistory, setVadHistory] = useState<
     { axis: "Valence" | "Arousal"; value: number }[]
   >([
-    { axis: "Valence", value: 0 },
     { axis: "Arousal", value: 0 },
+    { axis: "Valence", value: 0 },
   ]);
-  const [barHeights, setBarHeights] = useState<number[]>(
-    new Array(32).fill(10)
-  );
-
-  // Refs for recording
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Reference to emotion history for processing
   const historyRef = useRef<
     { label: string; score: number; timestamp: number }[]
   >([]);
-  
-  // Refs for visualization
-  const animationRef = useRef<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
 
+
+  // Use custom hook for audio recording
+  const { recordingDuration, stream, audioSegments } = useAudioRecording(isRecording);
+
+  // Add this useEffect to process audio segments as they're created
   useEffect(() => {
-    // Only run this effect when recording state changes
-    if (!isRecording) return;
-
-    const startAudioCapture = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        streamRef.current = stream;
-        
-        // Initialize media recorder
-        const recorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = recorder;
-        chunksRef.current = [];
-        
-        // Set up audio context for visualization
-        const audioCtx = new AudioContext();
-        const source = audioCtx.createMediaStreamSource(stream);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        
-        source.connect(analyser);
-        audioContextRef.current = audioCtx;
-        sourceRef.current = source;
-        analyserRef.current = analyser;
-        
-        // Set up visualization animation
-        const animate = () => {
-          analyser.getByteFrequencyData(dataArray);
-          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-          const scaled = Math.min(avg / 3, 50);
-          const newHeights = Array.from(
-            { length: 32 },
-            () => Math.random() * scaled + 5
-          );
-          setBarHeights(newHeights);
-          animationRef.current = requestAnimationFrame(animate);
-        };
-        animationRef.current = requestAnimationFrame(animate);
-        
-        // Handle data from recorder
-        recorder.ondataavailable = async (e) => {
-          if (e.data.size === 0) return;
-          
-          chunksRef.current.push(e.data);
-          const timestamp = Date.now();
-          
-          // Convert to wav for processing
-          const wavBlob = await getWaveBlob(e.data, false);
-          await processAudio(wavBlob, timestamp);
-        };
-        
-        recorder.onstop = () => {
-          console.log("Recording stopped");
-        };
-        
-        // Start recording with chunks at regular intervals
-        recorder.start(5000); // Send data every 5 seconds
-        
-        // Start duration timer
-        setRecordingDuration(0);
-        durationTimerRef.current = setInterval(() => {
-          setRecordingDuration(prev => prev + 1);
-        }, 1000);
-        
-      } catch (err) {
-        console.error("Cannot access microphone.", err);
-        setIsRecording(false);
-      }
-    };
-    
-    startAudioCapture();
-    
-    // Cleanup function that runs when recording stops or component unmounts
-    return () => {
-      // Stop media recorder
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    // Process the latest audio segment if available
+    const processLatestSegment = async () => {
+      const latestSegment = audioSegments[audioSegments.length - 1];
+      if (latestSegment) {
         try {
-          mediaRecorderRef.current.stop();
-        } catch (e) {
-          console.error("Error stopping recorder:", e);
+          // const endpoint = process.env.NEXT_PUBLIC_HF_ENDPOINT || "https://k0ffpl5x88gi50rs.us-east-1.aws.endpoints.huggingface.cloud";
+          
+          // Add a small delay before making the API call to prevent overwhelming the API
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Create a new FormData object to properly format the request
+          // const formData = new FormData();
+          // formData.append('audio', latestSegment.blob, 'audio.wav');
+          const apiKey = process.env.NEXT_PUBLIC_HF_API_KEY;
+          const response = await fetch(
+		        "https://h71e8l8gy97sk8fm.us-east4.gcp.endpoints.huggingface.cloud",
+            {
+            method: "POST",
+            headers: {
+              "Accept": "application/json",
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "audio/wav"  // Change to match your actual audio format
+            },
+            body: latestSegment.blob,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`API responded with status ${response.status}: ${response.statusText}`);
+          }
+          
+          const result = await response.json();
+          console.log('Received emotion analysis result:', result);
+          
+          // Here you would process the results and update your state...
+          // updateEmotionState(result);
+        } catch (error) {
+          console.error('Error analyzing audio segment:', error);
         }
       }
-      
-      // Stop and release all tracks
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-      
-      // Stop timers
-      if (durationTimerRef.current) {
-        clearInterval(durationTimerRef.current);
-        durationTimerRef.current = null;
-      }
-      
-      // Stop animation
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-      
-      // Close audio context
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      
-      // Disconnect audio source
-      if (sourceRef.current) {
-        sourceRef.current.disconnect();
-        sourceRef.current = null;
-      }
-      
-      // Clear history
-      historyRef.current = [];
-      
-      // Reset state
-      setRecordingDuration(0);
-      setBarHeights(new Array(32).fill(10));
     };
-  }, [isRecording]);
 
-  // Process audio data and update emotion state
-  const processAudio = async (wavBlob: Blob, timestamp: number) => {
-    try {
-      if (!process.env.NEXT_PUBLIC_HF_ENDPOINT) {
-        throw new Error("NEXT_PUBLIC_HF_ENDPOINT is not defined");
-      }
-      
-      const response = await fetch(process.env.NEXT_PUBLIC_HF_ENDPOINT, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_HF_API_KEY}`,
-        },
-        body: wavBlob,
-      });
-
-      const result = await response.json();
-      console.log(result);
-
-      // Process VAD values if available
-      if (result.vad) {
-        setVadHistory([
-          { axis: "Arousal", value: result[8].score ?? 0 },
-          { axis: "Valence", value: result[9].score ?? 0 },
-        ]);
-      }
-
-      // Process emotion results
-      if (Array.isArray(result) && result.length > 0) {
-        // Add new emotion data point
-        const entry = {
-          label: result[0].label.toLowerCase(),
-          score: result[0].score * 100,
-          timestamp,
-        };
-        historyRef.current.push(entry);
-        
-        // Keep only data from last 5 seconds
-        const window5 = historyRef.current.filter(
-          (d) => timestamp - d.timestamp <= 5000
-        );
-        
-        // Calculate top 3 emotions
-        const agg: Record<string, number> = {};
-        window5.forEach((d) => {
-          agg[d.label] = (agg[d.label] || 0) + d.score;
-        });
-        
-        const top3 = Object.entries(agg)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([label, score]) => ({ label, score }));
-        
-        setTop3Display(top3);
-      } else {
-        console.warn("Invalid or empty result from API:", result);
-      }
-    } catch (err) {
-      console.error("API Error:", err);
+    if (audioSegments.length > 0) {
+      processLatestSegment();
     }
-  };
-
+  }, [audioSegments]);
+  
+  // Use custom hook for audio visualization
+  const barHeights = useAudioVisualization(stream, isRecording);
+  
   // Start recording function
   const startRecording = () => {
-    setRecordingDuration(0);
     setIsRecording(true);
   };
 
@@ -253,11 +114,9 @@ export default function AudioEmotionAnalyzer() {
     setIsRecording(false);
   };
 
-  const latestEmotion = top3Display[0]?.label ?? null;
-
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>Real-Time DEmo</h1>
+      <h1 className={styles.title}>Real-Time Demo</h1>
       <div className={styles["layout-grid"]}>
         <Card className={styles.uploadSection}>
           <CardContent>
