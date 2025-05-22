@@ -9,24 +9,26 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/audiobuffer-to-wav": "^1.0.4",
     "@types/recharts": "^1.8.29",
-    "recharts": "^2.15.3",
+    "audiobuffer-to-wav": "^1.0.0",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.475.0",
+    "next": "15.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "lucide-react": "^0.475.0",
-    "framer-motion": "^12.4.7",
-    "next": "15.2.3",
+    "recharts": "^2.15.3",
     "webm-to-wav-converter": "^1.1.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.2.3",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

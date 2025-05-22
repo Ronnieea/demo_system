@@ -1,4 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import audioBufferToWav from 'audiobuffer-to-wav';
+
+// Add this interface to store WAV header
+interface WavHeader {
+  buffer: ArrayBuffer;
+  size: number;
+}
 
 interface AudioSegment {
     blob: Blob;
@@ -20,6 +27,8 @@ export function useAudioRecording(isRecording: boolean) {
     const lastSegmentTimeRef = useRef<number>(0);
     const processedSegmentsRef = useRef<Set<string>>(new Set());
     const currentDurationRef = useRef<number>(0);
+    const wavHeaderRef = useRef<WavHeader | null>(null);
+
 
     // Initialize audio recording
     useEffect(() => {
@@ -45,7 +54,7 @@ export function useAudioRecording(isRecording: boolean) {
         };
     }, [isRecording]);
 
-    // Start recording process
+
     const startRecordingProcess = async () => {
         try {
             // Reset state
@@ -56,14 +65,23 @@ export function useAudioRecording(isRecording: boolean) {
             lastSegmentTimeRef.current = 0;
             processedSegmentsRef.current = new Set();
             startTimeRef.current = Date.now();
+            wavHeaderRef.current = null; // Reset the WAV header
             
             const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             setStream(audioStream);
 
-            // Initialize audio context
-            audioContextRef.current = new AudioContext();
+            // Set up timer for duration tracking
+            timerRef.current = setInterval(() => {
+                currentDurationRef.current += 1;
+                setRecordingDuration(currentDurationRef.current);
+            }, 1000);
 
-            // Setup MediaRecorder
+            // Initialize audio context only if it doesn't exist or is closed
+            if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+                audioContextRef.current = new AudioContext();
+            }
+
+            // Setup MediaRecorder with a timeslice of 3 seconds (3000ms)
             const mediaRecorder = new MediaRecorder(audioStream);
             mediaRecorderRef.current = mediaRecorder;
 
@@ -71,37 +89,25 @@ export function useAudioRecording(isRecording: boolean) {
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     chunksRef.current.push(event.data);
+                    
+                    // Process each 3-second chunk as it becomes available
+                    const currentTime = currentDurationRef.current;
+                    const segmentStart = Math.floor(currentTime / 3) * 3;
+                    const segmentEnd = segmentStart + 3;
+                    
+                    const segmentKey = `${segmentStart}-${segmentEnd}`;
+                    if (!processedSegmentsRef.current.has(segmentKey)) {
+                        createAudioSegment(segmentStart, segmentEnd);
+                        console.log(segmentStart,segmentEnd);
+                        processedSegmentsRef.current.add(segmentKey);
+                        lastSegmentTimeRef.current = segmentEnd;
+                    }
                 }
             };
 
-            // Start recording
-            mediaRecorder.start();
+            // Start recording with a 3-second timeslice
+            mediaRecorder.start(3000);
 
-            // Set up timer for duration and segmentation
-            timerRef.current = setInterval(() => {
-                currentDurationRef.current += 1;
-                setRecordingDuration(currentDurationRef.current);
-                
-                console.log(`Timer value updated: ${currentDurationRef.current}`);
-                
-                // Create segments at exact 3s intervals
-                if (currentDurationRef.current % 3 === 0 && !isProcessingSegmentRef.current) {
-                    const exactSegmentStart = lastSegmentTimeRef.current;
-                    const exactSegmentEnd = currentDurationRef.current;
-                    
-                    // Only process if it's a valid segment and we haven't processed it before
-                    const segmentKey = `${exactSegmentStart}-${exactSegmentEnd}`;
-                    if (exactSegmentStart < exactSegmentEnd && !processedSegmentsRef.current.has(segmentKey)) {
-                        console.log(`Scheduling segment: ${exactSegmentStart}s to ${exactSegmentEnd}s`);
-                        
-                        createAudioSegment(exactSegmentStart, exactSegmentEnd);
-                        processedSegmentsRef.current.add(segmentKey);
-                        
-                        // Update the last segment time
-                        lastSegmentTimeRef.current = exactSegmentEnd;
-                    }
-                }
-            }, 1000);
 
         } catch (error) {
             console.error('Error starting recording:', error);
@@ -127,40 +133,72 @@ export function useAudioRecording(isRecording: boolean) {
         }
     };
     
-    // This function needs to be modified to create more reliable audio segments
-    const finalizeSegment = (segmentStartSecs: number, segmentEndSecs: number) => {
-        // Create a copy of the current chunks
+
+    // In your finalizeSegment function, extract and apply headers
+    const finalizeSegment = async (segmentStartSecs: number, segmentEndSecs: number) => {
+        // Create a copy of the current chunks for this segment
         const currentChunks = [...chunksRef.current];
         
-        // Only reset chunks if we successfully create a segment
         if (currentChunks.length > 0) {
-            console.log(`Processing audio segment: ${segmentStartSecs}s to ${segmentEndSecs}s`);
-            
-            // Use the MediaRecorder's mimeType for the blob type instead of hardcoding 'audio/wav'
-            const mimeType = mediaRecorderRef.current?.mimeType || 'audio/wav';
-            
-            // Create a blob with proper MIME type
-            const segmentBlob = new Blob(currentChunks, { type: mimeType });
-            
-            // For testing, let's log the blob size and type
-            console.log(`Created segment blob: ${segmentBlob.size} bytes, type: ${segmentBlob.type}`);
-            
-            // Only add non-empty segments
-            if (segmentBlob.size > 0) {
-                // Reset chunks for next segment only after successful creation
-                chunksRef.current = [];
+            try {
+                const originalMimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+                const tempBlob = new Blob(currentChunks, { type: originalMimeType });
                 
-                // Add segment to the list
-                setAudioSegments(prev => [
-                    ...prev,
-                    {
-                        blob: segmentBlob,
-                        startTime: segmentStartSecs,
-                        endTime: segmentEndSecs
-                    }
-                ]);
-            } else {
-                console.warn('Created empty segment blob, skipping');
+                console.log('Current chunks length:', currentChunks.length);
+                // Convert to AudioBuffer 
+                const arrayBuffer = await tempBlob.arrayBuffer();
+                const audioContext = new AudioContext();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                // Convert AudioBuffer to WAV
+                const wavArrayBuffer = audioBufferToWav(audioBuffer);
+                
+                // If this is the first segment, extract and store the WAV header
+                if (!wavHeaderRef.current && audioSegments.length === 0) {
+                    // WAV header is typically 44 bytes, but to be safe, let's use a larger size
+                    // The exact size can vary based on format details
+                    const HEADER_SIZE = 44;
+                    const headerBuffer = wavArrayBuffer.slice(0, HEADER_SIZE);
+                    wavHeaderRef.current = {
+                        buffer: headerBuffer,
+                        size: HEADER_SIZE
+                    };
+                    console.log('Extracted WAV header from first segment');
+                    
+                    // Use the complete WAV for the first segment
+                    const wavBlob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
+                    
+                    setAudioSegments(prev => [
+                        ...prev,
+                        {
+                            blob: wavBlob,
+                            startTime: segmentStartSecs,
+                            endTime: segmentEndSecs
+                        }
+                    ]);
+                } 
+                // For subsequent segments, append the stored header to the audio data
+                else if (wavHeaderRef.current) {
+                    const audioData = wavArrayBuffer.slice(wavHeaderRef.current.size);
+                    console.log(audioData)
+                    // Create a new blob with the stored header and current audio data
+                    const completeWavBlob = new Blob([
+                        wavHeaderRef.current.buffer,
+                        audioData
+                    ], { type: 'audio/wav' });
+                    
+                    setAudioSegments(prev => [
+                        ...prev,
+                        {
+                            blob: completeWavBlob,
+                            startTime: segmentStartSecs,
+                            endTime: segmentEndSecs
+                        }
+                    ]);
+                }
+                
+            } catch (error) {
+                console.error('Error creating audio segment:', error);
             }
         } else {
             console.warn('No audio chunks available for segment creation');
