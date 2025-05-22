@@ -58,33 +58,28 @@ export default function AudioEmotionAnalyzer() {
       const latestSegment = audioSegments[audioSegments.length - 1];
       if (latestSegment) {
         try {
-          // const endpoint = process.env.NEXT_PUBLIC_HF_ENDPOINT || "https://k0ffpl5x88gi50rs.us-east-1.aws.endpoints.huggingface.cloud";
-          // Save audio blob to file for debugging
-          const audioUrl = URL.createObjectURL(latestSegment.blob);
-          const downloadLink = document.createElement('a');
-          downloadLink.href = audioUrl;
-          downloadLink.download = `audio_segment_${latestSegment.startTime.toFixed(1)}_${latestSegment.endTime.toFixed(1)}.wav`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          URL.revokeObjectURL(audioUrl);
+          // ![DEBUGGING] Save audio blob to file
+          // const audioUrl = URL.createObjectURL(latestSegment.blob);
+          // const downloadLink = document.createElement('a');
+          // downloadLink.href = audioUrl;
+          // downloadLink.download = `audio_segment_${latestSegment.startTime.toFixed(1)}_${latestSegment.endTime.toFixed(1)}.wav`;
+          // document.body.appendChild(downloadLink);
+          // downloadLink.click();
+          // document.body.removeChild(downloadLink);
+          // URL.revokeObjectURL(audioUrl);
 
-          console.log(`Processing audio segment: ${latestSegment.startTime}s to ${latestSegment.endTime}s`);
-          // Add a small delay before making the API call to prevent overwhelming the API
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // ![DEBUGGING] Make sure process right segment
+          // console.log(`Processing audio segment: ${latestSegment.startTime}s to ${latestSegment.endTime}s`);
 
-          // Create a new FormData object to properly format the request
-          // const formData = new FormData();
-          // formData.append('audio', latestSegment.blob, 'audio.wav');
           const apiKey = process.env.NEXT_PUBLIC_HF_API_KEY;
           const response = await fetch(
-		        "https://na7f1wb034u5jywz.us-east-1.aws.endpoints.huggingface.cloud",
+		        "https://wwlxqhkta0pnxrb5.us-east-1.aws.endpoints.huggingface.cloud",
             {
             method: "POST",
             headers: {
               "Accept": "application/json",
               "Authorization": `Bearer ${apiKey}`,
-              "Content-Type": "audio/webm;codecs=opus"
+              "Content-Type": "audio/wav"
             },
             body: latestSegment.blob,
           });
