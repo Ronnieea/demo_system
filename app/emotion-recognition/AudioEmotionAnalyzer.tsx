@@ -1,22 +1,25 @@
-'use client';
+"use client";
 
 import { useState, useRef, useEffect } from "react";
 import { Mic } from "lucide-react";
 import { Card, CardContent } from "../components/card";
-import {
-  ResponsiveContainer,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-} from "recharts";
+
 import { motion } from "framer-motion";
 
 // Import custom hooks and services
 import { useAudioRecording } from "../hooks/useAudioRecording";
 import { useAudioVisualization } from "../hooks/useAudioVisualization";
+import { VADRadar } from "../hooks/VARadar";
 // import { analyzeAudioEmotion, processEmotionResults } from "../api/emotion_recognition/route";
+
+import {
+  formatVADForChart,
+  aggregateEmotionScores,
+  getTopEmotions,
+  computeProportions,
+  getTopNByPercent,
+  parseEmotionResult,
+} from "../utils/emotionUtils";
 
 import styles from "./AudioEmotionAnalyzer.module.css";
 
@@ -26,9 +29,9 @@ const emojiMap: Record<string, string> = {
   sad: "😢",
   angry: "😠",
   neutral: "😐",
-  surprised: "😲",
-  fearful: "😨",
-  disgusted: "🤢",
+  surprise: "😲",
+  fear: "😨",
+  contempt: "😒",
 };
 
 export default function AudioEmotionAnalyzer() {
@@ -37,22 +40,26 @@ export default function AudioEmotionAnalyzer() {
   const [top3Display, setTop3Display] = useState<
     { label: string; score: number }[]
   >([]);
-  const [vadHistory, setVadHistory] = useState<
-    { axis: "Valence" | "Arousal"; value: number }[]
-  >([
-    { axis: "Arousal", value: 0 },
-    { axis: "Valence", value: 0 },
-  ]);
+  // const [vadHistory, setVadHistory] = useState<
+  //   { axis: "Valence" | "Arousal"; value: number }[]
+  // >([
+  //   { axis: "Arousal", value: 0 },
+  //   { axis: "Valence", value: 0 },
+  // ]);
+
+  const [vadPoints, setVadPoints] = useState<
+    { valence: number; arousal: number; isNew: boolean; timestamp: number }[]
+  >([]);
 
   // Reference to emotion history for processing
   const historyRef = useRef<
     { label: string; score: number; timestamp: number }[]
   >([]);
 
-
   // Use custom hook for audio recording
-  const { recordingDuration, stream, audioSegments } = useAudioRecording(isRecording);
-  
+  const { recordingDuration, stream, audioSegments } =
+    useAudioRecording(isRecording);
+
   useEffect(() => {
     const processLatestSegment = async () => {
       const latestSegment = audioSegments[audioSegments.length - 1];
@@ -73,29 +80,81 @@ export default function AudioEmotionAnalyzer() {
 
           const apiKey = process.env.NEXT_PUBLIC_HF_API_KEY;
           const response = await fetch(
-		        "https://wwlxqhkta0pnxrb5.us-east-1.aws.endpoints.huggingface.cloud",
+            "https://rngepbqp0dpb1srv.us-east-1.aws.endpoints.huggingface.cloud",
             {
-            method: "POST",
-            headers: {
-              "Accept": "application/json",
-              "Authorization": `Bearer ${apiKey}`,
-              "Content-Type": "audio/wav"
-            },
-            body: latestSegment.blob,
-          });
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "audio/wav",
+              },
+              body: latestSegment.blob,
+            }
+          );
 
           if (!response.ok) {
-            throw new Error(`API responded with status ${response.status}: ${response.statusText}`);
+            throw new Error(
+              `API responded with status ${response.status}: ${response.statusText}`
+            );
           }
 
-
           const result = await response.json();
-          console.log('Received emotion analysis result:', result);
+          console.log("Received emotion analysis result:", result);
 
-          // Here you would process the results and update your state...
-          // updateEmotionState(result);
+          const { top3, vad } = parseEmotionResult(result);
+
+          // setTop3Display(top3);
+          setTop3Display(
+            top3.map((e) => ({
+              label: e.label,
+              score: parseFloat((e.score * 100).toFixed(1)),
+            }))
+          );
+
+          const timestamp = Date.now();
+
+          // clamp 保證在 [0,1] 之間
+          const clamp = (v: number) => Math.max(0, Math.min(1, v));
+          const vValence = clamp(vad.valence);
+          const vArousal = clamp(vad.arousal);
+
+          setVadPoints((prev) => [
+            ...prev.map((p) => ({ ...p, isNew: false })), // 先把舊點都設成灰
+            {
+              valence: vValence,
+              arousal: vArousal,
+              isNew: true,
+              timestamp: Date.now(),
+            },
+          ]);
+
+          top3.forEach((e) => {
+            historyRef.current.push({
+              label: e.label,
+              score: e.score, // 0–1
+              timestamp: timestamp,
+            });
+          });
+
+          const window5 = historyRef.current.filter(
+            (d) => timestamp - d.timestamp <= 5000
+          );
+
+          const rawSumMap = aggregateEmotionScores(window5);
+
+          const percentList = computeProportions(rawSumMap);
+
+          const top3Aggregated = getTopNByPercent(percentList, 3);
+
+          setTop3Display(top3Aggregated);
+
+          historyRef.current = historyRef.current.filter(
+            (d) => timestamp - d.timestamp <= 5000
+          );
+
+          // historyRef.current.push({ ...top3[0], timestamp });
         } catch (error) {
-          console.error('Error analyzing audio segment:', error);
+          console.error("Error analyzing audio segment:", error);
         }
       }
     };
@@ -208,8 +267,9 @@ export default function AudioEmotionAnalyzer() {
                       transition={{ duration: 0.2 }}
                     >
                       <span className={styles.emoji}>{emojiMap[e.label]}</span>
-                      <span className={styles.emotionLabel}>{e.label}</span>:{" "}
-                      {e.score.toFixed(1)}%
+                      <span className={styles.emotionLabel}>
+                        {e.label}
+                      </span>: {e.score.toFixed(1)}%
                     </motion.p>
                   ))
                 ) : (
@@ -222,25 +282,7 @@ export default function AudioEmotionAnalyzer() {
           <Card className={styles.vadBox}>
             <CardContent>
               <h2 className={styles.subtitle}>Emotion V-A Radar</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <RadarChart
-                  cx="50%"
-                  cy="50%"
-                  outerRadius="80%"
-                  data={vadHistory}
-                >
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="axis" />
-                  <PolarRadiusAxis domain={[0, 1]} tickCount={5} />
-                  <Radar
-                    name="VAD"
-                    dataKey="value"
-                    stroke="#82ca9d"
-                    fill="#82ca9d"
-                    fillOpacity={0.6}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
+              <VADRadar vadPoints={vadPoints} />
             </CardContent>
           </Card>
         </div>
